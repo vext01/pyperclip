@@ -168,6 +168,21 @@ def _pasteXsel():
     return bytes.decode(stdout)
 
 
+def mk_copy_func(xclip=False, xsel=False, gtk=False, qt=False):
+    """Use a closure to generate a copy function for the available clipboards"""
+
+    def wrap(text):
+        if xclip:
+            _copyXclip(text)
+        if xsel:
+            _copyXsel(text)
+        if gtk:
+            _copyGtk(text)
+        if qt:
+            _copyQt(text)
+
+    return wrap
+
 
 # Determine the OS/platform and set the copy() and paste() functions accordingly.
 if 'cygwin' in platform.system().lower():
@@ -200,9 +215,9 @@ elif os.name == 'posix' or platform.system() == 'Linux':
     except ImportError:
         pass
 
+    PyQt4Installed = False
     if not gtkInstalled:
         # Check if PyQt4 is installed.
-        PyQt4Installed = False
         try:
             import PyQt4.QtCore
             import PyQt4.QtGui
@@ -210,27 +225,28 @@ elif os.name == 'posix' or platform.system() == 'Linux':
         except ImportError:
             pass
 
+    # We need to find at-least one clipboard tool
+    if True not in [xclipExists, xselExists, gtkInstalled, PyQt4Installed]:
+        raise Exception('Pyperclip requires xclip, xsel, pygtk or PyQt4')
+
+    copy = mk_copy_func(xclipExists, xselExists, gtkInstalled, PyQt4Installed)
+
+    # XXX old code
     # Set one of the copy & paste functions.
     if xclipExists:
         _functions = 'xclip command' # for debugging
         paste = _pasteXclip
-        copy = _copyXclip
     elif gtkInstalled:
         _functions = 'gtk module' # for debugging
         paste = _pasteGtk
-        copy = _copyGtk
     elif PyQt4Installed:
         _functions = 'PyQt4 module' # for debugging
         app = PyQt4.QtGui.QApplication([])
         cb = PyQt4.QtGui.QApplication.clipboard()
         paste = _pasteQt
-        copy = _copyQt
     elif xselExists:
         # TODO: xsel doesn't seem to work on Raspberry Pi (my test Linux environment). Putting this as the last method tried.
         _functions = 'xsel command' # for debugging
         paste = _pasteXsel
-        copy = _copyXsel
-    else:
-        raise Exception('Pyperclip requires the xclip or xsel application, or the gtk or PyQt4 module.')
 else:
     raise RuntimeError('pyperclip does not support your system.')
