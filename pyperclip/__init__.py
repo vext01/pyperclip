@@ -130,14 +130,20 @@ def _copyQt(text):
     cb.setText(text)
 
 
+XCLIP_CLIPBOARDS = ["primary", "selection", "clipboard"]
 def _copyXclip(text):
-    p = Popen(['xclip', '-selection', 'c'], stdin=PIPE)
-    try:
-        # works on Python 3 (bytes() requires an encoding)
-        p.communicate(input=bytes(text, 'utf-8'))
-    except TypeError:
-        # works on Python 2 (bytes() only takes one argument)
-        p.communicate(input=bytes(text))
+    def _copy(text, clipboard):
+        p = Popen(['xclip', '-selection', clipboard], stdin=PIPE)
+        try:
+            # works on Python 3 (bytes() requires an encoding)
+            p.communicate(input=bytes(text, 'utf-8'))
+        except TypeError:
+            # works on Python 2 (bytes() only takes one argument)
+            p.communicate(input=bytes(text))
+
+    # brute force copy to all clipboards
+    for clip in XCLIP_CLIPBOARDS:
+        _copy(text, clip)
 
 
 def _pasteXclip():
